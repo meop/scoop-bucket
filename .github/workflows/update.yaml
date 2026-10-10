@@ -1,0 +1,40 @@
+name: Update manifests
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/**
+      - .github/workflows/update.yaml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-manifests
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify releases and update manifests
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/Update-Manifests.ps1
+      - name: Commit changed manifests
+        shell: pwsh
+        run: |
+          git add -- bucket
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) { exit 0 }
+          if ($LASTEXITCODE -ne 1) { throw 'Could not inspect manifest changes.' }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Update Scoop release manifests'
+          if ($LASTEXITCODE -ne 0) { throw 'Commit failed.' }
+          git push
+          if ($LASTEXITCODE -ne 0) { throw 'Push failed.' }

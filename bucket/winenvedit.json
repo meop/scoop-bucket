@@ -1,0 +1,36 @@
+{
+  "version": "1.1.1",
+  "description": "Edit Windows user and system environment variables with path management, import/export and undo history.",
+  "homepage": "https://github.com/meop/WinEnvEdit",
+  "license": "MIT",
+  "notes": "Requires Windows 11 or later.",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/meop/WinEnvEdit/releases/download/v1.1.1/WinEnvEdit-x64.zip",
+      "hash": "5fa86f31552452a28a509d6d6286a738658dd60ead986b95f5b4f969ecd72bd9"
+    },
+    "arm64": {
+      "url": "https://github.com/meop/WinEnvEdit/releases/download/v1.1.1/WinEnvEdit-arm64.zip",
+      "hash": "31665d096b65d4d6bda97d5ee39a8039ca3fcd067c5fd59f78b317562f7b8a76"
+    }
+  },
+  "shortcuts": [
+    [
+      "WinEnvEdit.exe",
+      "WinEnvEdit"
+    ]
+  ],
+  "checkver": {
+    "github": "https://github.com/meop/WinEnvEdit"
+  },
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/meop/WinEnvEdit/releases/download/v$version/WinEnvEdit-x64.zip"
+      },
+      "arm64": {
+        "url": "https://github.com/meop/WinEnvEdit/releases/download/v$version/WinEnvEdit-arm64.zip"
+      }
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "version": "0.1.1",
+  "description": "Browse, download and manage official PlayStation game updates and firmware, with RPCS3 library integration.",
+  "homepage": "https://github.com/meop/PSNWDL",
+  "license": "MIT",
+  "notes": "Requires the Microsoft Edge WebView2 Runtime (normally present on Windows 11).",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/meop/PSNWDL/releases/download/v0.1.1/psnwdl-0.1.1-windows-x64-portable.zip",
+      "hash": "cb62096274e20c6397e56be4974f6e925d8dbc77a8b517745903dee4f9675acb"
+    },
+    "arm64": {
+      "url": "https://github.com/meop/PSNWDL/releases/download/v0.1.1/psnwdl-0.1.1-windows-arm64-portable.zip",
+      "hash": "aa2fb0b1a8380d1af27ffec5b26313be0491df791163dc404d90e185e62301d8"
+    }
+  },
+  "shortcuts": [
+    [
+      "PSNWDL.exe",
+      "PSNWDL"
+    ]
+  ],
+  "checkver": {
+    "github": "https://github.com/meop/PSNWDL"
+  },
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/meop/PSNWDL/releases/download/v$version/psnwdl-$version-windows-x64-portable.zip"
+      },
+      "arm64": {
+        "url": "https://github.com/meop/PSNWDL/releases/download/v$version/psnwdl-$version-windows-arm64-portable.zip"
+      }
+    }
+  }
+}
