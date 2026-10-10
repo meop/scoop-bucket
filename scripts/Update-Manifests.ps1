@@ -1,5 +1,9 @@
 [CmdletBinding()]
-param([string]$AssetsDirectory)
+param(
+    [string]$AssetsDirectory,
+    [ValidateSet('meop/PSNWDL', 'meop/WinEnvEdit')][string]$Repository,
+    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version
+)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -21,30 +25,33 @@ $products = @(
     }
 )
 $pending = @()
+if ($Version -and -not $Repository) { throw 'A specific version requires a repository.' }
+if ($Repository) { $products = @($products | Where-Object repository -EQ $Repository) }
 foreach ($product in $products) {
-    $releaseJson = & gh api "repos/$($product.repository)/releases/latest"
+    $endpoint = if ($Version) { "repos/$($product.repository)/releases/tags/v$Version" } else { "repos/$($product.repository)/releases/latest" }
+    $releaseJson = & gh api $endpoint
     if ($LASTEXITCODE -ne 0) { throw "Could not read release for $($product.repository)." }
     $release = $releaseJson | ConvertFrom-Json
-    $version = $release.tag_name -replace '^v', ''
-    if ($release.draft -or $release.prerelease -or $version -notmatch '^\d+\.\d+\.\d+$') {
+    $releaseVersion = $release.tag_name -replace '^v', ''
+    if ($release.draft -or $release.prerelease -or $releaseVersion -notmatch '^\d+\.\d+\.\d+$') {
         throw "Expected published stable release for $($product.repository)."
     }
     $manifestPath = Join-Path $repoRoot "bucket/$($product.id).json"
     if (Test-Path -LiteralPath $manifestPath) {
         $previous = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-        if ([version]$version -lt [version]$previous.version) { throw "Refusing downgrade of $($product.id)." }
+        if ([version]$releaseVersion -lt [version]$previous.version) { throw "Refusing downgrade of $($product.id)." }
     }
     $architecture = [ordered]@{}
     $autoupdate = [ordered]@{}
     foreach ($arch in @('x64', 'arm64')) {
-        $assetName = $product.asset.Replace('{version}', $version).Replace('{arch}', $arch)
+        $assetName = $product.asset.Replace('{version}', $releaseVersion).Replace('{arch}', $arch)
         $assets = @($release.assets | Where-Object name -CEQ $assetName)
         if ($assets.Count -ne 1) { throw "Expected exactly one release asset: $assetName" }
         $asset = $assets[0]
         $expectedUrl = "https://github.com/$($product.repository)/releases/download/$($release.tag_name)/$assetName"
         if ($asset.browser_download_url -cne $expectedUrl) { throw "Unexpected download URL: $assetName" }
         # Version-specific cache prevents WinEnvEdit's reused asset names from colliding.
-        $cacheDir = Join-Path $AssetsDirectory "$($product.id)/$version"
+        $cacheDir = Join-Path $AssetsDirectory "$($product.id)/$releaseVersion"
         New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null
         $assetPath = Join-Path $cacheDir $assetName
         if (-not (Test-Path -LiteralPath $assetPath)) {
@@ -66,7 +73,7 @@ foreach ($product in $products) {
         $autoupdate[$key] = @{ url = "https://github.com/$($product.repository)/releases/download/v`$version/$pattern" }
     }
     $manifest = [ordered]@{
-        version = $version
+        version = $releaseVersion
         description = $product.description
         homepage = "https://github.com/$($product.repository)"
         license = 'MIT'
@@ -77,9 +84,9 @@ foreach ($product in $products) {
         autoupdate = @{ architecture = $autoupdate }
     }
     $pending += @{ Path = $manifestPath; Json = ($manifest | ConvertTo-Json -Depth 10) }
-    Write-Output "Verified $($product.id) $version, x64 and ARM64 assets."
+    Write-Output "Verified $($product.id) $releaseVersion, x64 and ARM64 assets."
 }
-# Write only after both products pass every check.
+# Write only after all selected products pass every check.
 New-Item -ItemType Directory -Force -Path (Join-Path $repoRoot 'bucket') | Out-Null
 foreach ($item in $pending) {
     [IO.File]::WriteAllText($item.Path, ($item.Json.Replace("`r`n", "`n") + "`n"), [Text.UTF8Encoding]::new($false))

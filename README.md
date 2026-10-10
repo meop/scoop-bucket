@@ -22,11 +22,13 @@ Windows environment variables.
 
 ## Maintenance
 
-GitHub Actions checks both projects' latest stable releases every six hours and
-can also be run manually. It downloads both architectures, verifies release
+Each app's release pipeline calls this bucket's reusable GitHub Actions workflow
+after publishing a stable release. A manual bucket workflow can also refresh both
+latest stable releases. There is no scheduled polling. It downloads both architectures, verifies release
 asset sizes and available GitHub SHA256 digests, checks ZIP executable layout,
 then commits changed manifests. Drafts, prereleases and version downgrades are
-rejected. No cross-repository secret or maintainer account is needed.
+rejected. Each app's SCOOP_BUCKET_SSH_KEY Actions secret holds a deploy key with
+write access only to this bucket. No personal access token is needed.
 
 ```powershell
 ./scripts/Update-Manifests.ps1

@@ -1,0 +1,60 @@
+name: Publish released app
+on:
+  workflow_call:
+    inputs:
+      repository:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+    secrets:
+      SCOOP_BUCKET_SSH_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - name: Check caller
+        shell: pwsh
+        env:
+          SOURCE_REPOSITORY: ${{ inputs.repository }}
+          CALLER_REPOSITORY: ${{ github.repository }}
+        run: |
+          if ($env:SOURCE_REPOSITORY -notin @('meop/PSNWDL', 'meop/WinEnvEdit') -or $env:SOURCE_REPOSITORY -ne $env:CALLER_REPOSITORY) {
+            throw 'Only the matching app repository may publish its Scoop manifest.'
+          }
+      - uses: actions/checkout@v7
+        with:
+          repository: meop/scoop-bucket
+          ref: main
+          ssh-key: ${{ secrets.SCOOP_BUCKET_SSH_KEY }}
+      - name: Verify published assets and update manifest
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_REPOSITORY: ${{ inputs.repository }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: ./scripts/Update-Manifests.ps1 -Repository $env:SOURCE_REPOSITORY -Version $env:RELEASE_VERSION
+      - name: Commit changed manifest
+        shell: pwsh
+        run: |
+          git add -- bucket
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) { exit 0 }
+          if ($LASTEXITCODE -ne 1) { throw 'Could not inspect manifest changes.' }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Update released app Scoop manifest'
+          if ($LASTEXITCODE -ne 0) { throw 'Commit failed.' }
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            git push origin HEAD:main
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            git pull --rebase origin main
+            if ($LASTEXITCODE -ne 0) { throw 'Could not reconcile concurrent manifest update.' }
+          }
+          throw 'Push failed after three attempts.'
